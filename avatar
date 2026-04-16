@@ -6,7 +6,7 @@ local humanoid = character:WaitForChild("Humanoid")
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OutfitSwitcherGui"
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = game:GetService("StarterGui")
 ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame")
@@ -76,7 +76,7 @@ LoadButton.Font = Enum.Font.SourceSansBold
 LoadButton.TextSize = 20
 LoadButton.Parent = Frame
 
--- Function to load and apply outfit using HumanoidDescription
+-- Function to fetch and apply avatar description
 local function loadOutfitFromUserId(userId)
     local success, description = pcall(function()
         return Players:GetHumanoidDescriptionFromUserId(userId)
@@ -84,8 +84,9 @@ local function loadOutfitFromUserId(userId)
     if success and description then
         -- Apply the description to your humanoid
         humanoid:ApplyDescription(description)
+        print("Outfit applied successfully for User ID:", userId)
     else
-        warn("Failed to get humanoid description for UserId:", userId)
+        warn("Failed to get humanoid description for User ID:", userId)
     end
 end
 
