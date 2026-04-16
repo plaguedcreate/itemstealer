@@ -1,8 +1,5 @@
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
-local InsertService = game:GetService("InsertService")
-local RunService = game:GetService("RunService")
-
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
@@ -10,112 +7,126 @@ local character = player.Character or player.CharacterAdded:Wait()
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OutfitSwitcherGui"
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 300, 0, 150)
 Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BackgroundColor3 = Color3.new(0,0,0)
+Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 
+-- Make draggable
+local UserInputService = game:GetService("UserInputService")
+local dragging = false
+local dragStart, startPos
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+    end
+end)
+
+Frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        Frame.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
+    end
+end)
+
+-- Title Label
 local Title = Instance.new("TextLabel")
 Title.Text = "Outfit Loader"
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Title.TextColor3 = Color3.new(1,1,1)
+Title.BackgroundColor3 = Color3.new(0,0,0)
+Title.TextColor3 = Color3.new(0,1,0)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
 Title.Parent = Frame
 
+-- Input box for User ID
 local InputBox = Instance.new("TextBox")
 InputBox.PlaceholderText = "Enter User ID"
 InputBox.Size = UDim2.new(1, -20, 0, 30)
 InputBox.Position = UDim2.new(0, 10, 0, 40)
-InputBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-InputBox.TextColor3 = Color3.new(1,1,1)
+InputBox.BackgroundColor3 = Color3.new(0,0,0)
+InputBox.TextColor3 = Color3.new(0,1,0)
+InputBox.Font = Enum.Font.SourceSans
+InputBox.TextSize = 18
+InputBox.ClearTextOnFocus = false
+InputBox.Text = ""
 InputBox.Parent = Frame
 
+-- Load Button
 local LoadButton = Instance.new("TextButton")
 LoadButton.Text = "Load Outfit"
 LoadButton.Size = UDim2.new(1, -20, 0, 40)
 LoadButton.Position = UDim2.new(0, 10, 0, 80)
-LoadButton.BackgroundColor3 = Color3.fromRGB(100, 100, 250)
-LoadButton.TextColor3 = Color3.new(1,1,1)
+LoadButton.BackgroundColor3 = Color3.new(0,0,0)
+LoadButton.TextColor3 = Color3.new(0,1,0)
+LoadButton.Font = Enum.Font.SourceSansBold
+LoadButton.TextSize = 20
 LoadButton.Parent = Frame
 
-local function Color3FromHex(hex)
-    local r = tonumber(hex:sub(1,2), 16)/255
-    local g = tonumber(hex:sub(3,4), 16)/255
-    local b = tonumber(hex:sub(5,6), 16)/255
-    return Color3.new(r,g,b)
-end
-
-local function fetchUserAvatar(userId)
-    local url = "https://avatar.roblox.com/v1/users/" .. userId .. "/avatar"
-    local success, response = pcall(function()
-        return HttpService:GetAsync(url)
+-- Function to get avatar assets
+local function getUserAssets(userId)
+    local success, assetsString = pcall(function()
+        return Players:GetCharacterAppearanceAsync(userId)
     end)
-    if success then
-        local data = HttpService:JSONDecode(response)
-        return data
+
+    if success and assetsString then
+        return assetsString
     else
-        warn("Failed to fetch avatar data")
+        warn("Failed to get avatar appearance for userId:", userId)
         return nil
     end
 end
 
-local function applyAvatar(avatarData)
-    if not avatarData or not avatarData.assets then return end
+local function parseAssetsString(assetsString)
+    local assets = {}
+    for asset in string.gmatch(assetsString, "[^,]+") do
+        table.insert(assets, asset)
+    end
+    return assets
+end
 
-    -- Remove existing clothing/accessories
+local function applyAssets(assets)
+    -- Remove current clothing/accessories
     for _, item in ipairs(character:GetChildren()) do
         if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("BodyColors") then
             item:Destroy()
         end
     end
 
-    -- Apply Shirt
-    if avatarData.assets.shirt then
-        local shirt = Instance.new("Shirt")
-        shirt.ShirtTemplate = avatarData.assets.shirt
-        shirt.Parent = character
-    end
-
-    -- Apply Pants
-    if avatarData.assets.pants then
-        local pants = Instance.new("Pants")
-        pants.PantsTemplate = avatarData.assets.pants
-        pants.Parent = character
-    end
-
-    -- Apply Accessories
-    if avatarData.assets.accessories then
-        for _, accessoryId in ipairs(avatarData.assets.accessories) do
-            local success, accessoryAsset = pcall(function()
-                return InsertService:LoadAsset(accessoryId)
+    -- Apply assets
+    for _, assetIdStr in ipairs(assets) do
+        local assetId = tonumber(assetIdStr)
+        if assetId then
+            local success, assetModel = pcall(function()
+                return InsertService:LoadAsset(assetId)
             end)
-            if success and accessoryAsset then
-                for _, item in ipairs(accessoryAsset:GetChildren()) do
+            if success and assetModel then
+                for _, item in ipairs(assetModel:GetChildren()) do
                     if item:IsA("Accessory") then
+                        item.Parent = character
+                    elseif item:IsA("Shirt") or item:IsA("Pants") then
                         item.Parent = character
                     end
                 end
             end
         end
     end
-
-    -- Apply BodyColors
-    if avatarData.assets.bodyColors then
-        local colors = avatarData.assets.bodyColors
-        local bodyColors = Instance.new("BodyColors")
-        bodyColors.HeadColor = Color3FromHex(colors.headColor)
-        bodyColors.LeftArmColor = Color3FromHex(colors.leftArmColor)
-        bodyColors.RightArmColor = Color3FromHex(colors.rightArmColor)
-        bodyColors.LeftLegColor = Color3FromHex(colors.leftLegColor)
-        bodyColors.RightLegColor = Color3FromHex(colors.rightLegColor)
-        bodyColors.TorsoColor = Color3FromHex(colors.torsoColor)
-        bodyColors.Parent = character
-    end
 end
 
--- Button click handler
+-- Button click to fetch and apply outfit
 LoadButton.MouseButton1Click:Connect(function()
     local userIdStr = InputBox.Text
     local userId = tonumber(userIdStr)
@@ -123,8 +134,10 @@ LoadButton.MouseButton1Click:Connect(function()
         warn("Invalid User ID")
         return
     end
-    local avatarData = fetchUserAvatar(userId)
-    if avatarData then
-        applyAvatar(avatarData)
+
+    local assetsString = getUserAssets(userId)
+    if assetsString then
+        local assets = parseAssetsString(assetsString)
+        applyAssets(assets)
     end
 end)
