@@ -1,0 +1,41 @@
+-- References to GUI elements
+local textBox = script.Parent:WaitForChild("ItemIDTextBox")
+local addButton = script.Parent:WaitForChild("AddButton")
+local equipButton = script.Parent:WaitForChild("EquipButton")
+local listFrame = script.Parent:WaitForChild("ItemList")
+
+local itemIds = {}
+
+-- Function to add item ID to list
+addButton.MouseButton1Click:Connect(function()
+    local id = textBox.Text
+    if tonumber(id) then
+        table.insert(itemIds, id)
+        -- Create a label to show the added ID
+        local label = Instance.new("TextLabel")
+        label.Text = "ID: " .. id
+        label.Size = UDim2.new(1, 0, 0, 20)
+        label.Parent = listFrame
+        textBox.Text = ""
+    else
+        warn("Invalid ID")
+    end
+end)
+
+-- Function to equip all items
+equipButton.MouseButton1Click:Connect(function()
+    for _, id in ipairs(itemIds) do
+        local asset = "rbxassetid://" .. id
+        local accessory = Instance.new("Accessory")
+        local handle = Instance.new("Part")
+        handle.Name = "Handle"
+        handle.Parent = accessory
+
+        local mesh = Instance.new("SpecialMesh")
+        mesh.MeshId = asset
+        mesh.Parent = handle
+
+        accessory.Name = "CustomAccessory"
+        accessory.Parent = game.Players.LocalPlayer.Character
+    end
+end)
