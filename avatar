@@ -1,7 +1,7 @@
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -12,7 +12,7 @@ ScreenGui.ResetOnSpawn = false
 local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 300, 0, 150)
 Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-Frame.BackgroundColor3 = Color3.new(0,0,0)
+Frame.BackgroundColor3 = Color3.new(0, 0, 0)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 
@@ -46,8 +46,8 @@ end)
 local Title = Instance.new("TextLabel")
 Title.Text = "Outfit Loader"
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.new(0,0,0)
-Title.TextColor3 = Color3.new(0,1,0)
+Title.BackgroundColor3 = Color3.new(0, 0, 0)
+Title.TextColor3 = Color3.new(0, 1, 0)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.Parent = Frame
@@ -57,8 +57,8 @@ local InputBox = Instance.new("TextBox")
 InputBox.PlaceholderText = "Enter User ID"
 InputBox.Size = UDim2.new(1, -20, 0, 30)
 InputBox.Position = UDim2.new(0, 10, 0, 40)
-InputBox.BackgroundColor3 = Color3.new(0,0,0)
-InputBox.TextColor3 = Color3.new(0,1,0)
+InputBox.BackgroundColor3 = Color3.new(0, 0, 0)
+InputBox.TextColor3 = Color3.new(0, 1, 0)
 InputBox.Font = Enum.Font.SourceSans
 InputBox.TextSize = 18
 InputBox.ClearTextOnFocus = false
@@ -70,63 +70,26 @@ local LoadButton = Instance.new("TextButton")
 LoadButton.Text = "Load Outfit"
 LoadButton.Size = UDim2.new(1, -20, 0, 40)
 LoadButton.Position = UDim2.new(0, 10, 0, 80)
-LoadButton.BackgroundColor3 = Color3.new(0,0,0)
-LoadButton.TextColor3 = Color3.new(0,1,0)
+LoadButton.BackgroundColor3 = Color3.new(0, 0, 0)
+LoadButton.TextColor3 = Color3.new(0, 1, 0)
 LoadButton.Font = Enum.Font.SourceSansBold
 LoadButton.TextSize = 20
 LoadButton.Parent = Frame
 
--- Function to get avatar assets
-local function getUserAssets(userId)
-    local success, assetsString = pcall(function()
-        return Players:GetCharacterAppearanceAsync(userId)
+-- Function to load and apply outfit using HumanoidDescription
+local function loadOutfitFromUserId(userId)
+    local success, description = pcall(function()
+        return Players:GetHumanoidDescriptionFromUserId(userId)
     end)
-
-    if success and assetsString then
-        return assetsString
+    if success and description then
+        -- Apply the description to your humanoid
+        humanoid:ApplyDescription(description)
     else
-        warn("Failed to get avatar appearance for userId:", userId)
-        return nil
+        warn("Failed to get humanoid description for UserId:", userId)
     end
 end
 
-local function parseAssetsString(assetsString)
-    local assets = {}
-    for asset in string.gmatch(assetsString, "[^,]+") do
-        table.insert(assets, asset)
-    end
-    return assets
-end
-
-local function applyAssets(assets)
-    -- Remove current clothing/accessories
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("BodyColors") then
-            item:Destroy()
-        end
-    end
-
-    -- Apply assets
-    for _, assetIdStr in ipairs(assets) do
-        local assetId = tonumber(assetIdStr)
-        if assetId then
-            local success, assetModel = pcall(function()
-                return InsertService:LoadAsset(assetId)
-            end)
-            if success and assetModel then
-                for _, item in ipairs(assetModel:GetChildren()) do
-                    if item:IsA("Accessory") then
-                        item.Parent = character
-                    elseif item:IsA("Shirt") or item:IsA("Pants") then
-                        item.Parent = character
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Button click to fetch and apply outfit
+-- Button click event
 LoadButton.MouseButton1Click:Connect(function()
     local userIdStr = InputBox.Text
     local userId = tonumber(userIdStr)
@@ -134,10 +97,5 @@ LoadButton.MouseButton1Click:Connect(function()
         warn("Invalid User ID")
         return
     end
-
-    local assetsString = getUserAssets(userId)
-    if assetsString then
-        local assets = parseAssetsString(assetsString)
-        applyAssets(assets)
-    end
+    loadOutfitFromUserId(userId)
 end)
