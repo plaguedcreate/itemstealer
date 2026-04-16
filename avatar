@@ -7,7 +7,7 @@ local humanoid = character:WaitForChild("Humanoid")
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OutfitLoaderGUI"
-ScreenGui.Parent = game:GetService("StarterGui")
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 ScreenGui.ResetOnSpawn = false
 
 local Frame = Instance.new("Frame")
@@ -43,12 +43,12 @@ Frame.InputChanged:Connect(function(input)
     end
 end)
 
--- Title
+-- Title Label
 local Title = Instance.new("TextLabel")
 Title.Text = "Outfit Loader"
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.new(0,0,0)
-Title.TextColor3 = Color3.new(0,1,0)
+Title.BackgroundColor3 = Color3.new(0, 0, 0)
+Title.TextColor3 = Color3.new(0, 1, 0)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.Parent = Frame
@@ -58,252 +58,73 @@ local InputBox = Instance.new("TextBox")
 InputBox.PlaceholderText = "Enter User ID"
 InputBox.Size = UDim2.new(1, -20, 0, 30)
 InputBox.Position = UDim2.new(0, 10, 0, 40)
-InputBox.BackgroundColor3 = Color3.new(0,0,0)
-InputBox.TextColor3 = Color3.new(0,1,0)
+InputBox.BackgroundColor3 = Color3.new(0, 0, 0)
+InputBox.TextColor3 = Color3.new(0, 1, 0)
 InputBox.Font = Enum.Font.SourceSans
 InputBox.TextSize = 18
 InputBox.ClearTextOnFocus = false
 InputBox.Text = ""
 InputBox.Parent = Frame
 
--- Load button
+-- Load Outfit Button
 local LoadButton = Instance.new("TextButton")
 LoadButton.Text = "Load Outfit"
 LoadButton.Size = UDim2.new(1, -20, 0, 40)
 LoadButton.Position = UDim2.new(0, 10, 0, 80)
-LoadButton.BackgroundColor3 = Color3.new(0,0,0)
-LoadButton.TextColor3 = Color3.new(0,1,0)
+LoadButton.BackgroundColor3 = Color3.new(0, 0, 0)
+LoadButton.TextColor3 = Color3.new(0, 1, 0)
 LoadButton.Font = Enum.Font.SourceSansBold
 LoadButton.TextSize = 20
 LoadButton.Parent = Frame
 
--- Function to fetch avatar asset IDs
-local function fetchAvatarAssets(userId)
+-- Function to fetch avatar assets and apply them
+local function fetchAndApplyAvatar(userId)
+    -- Fetch avatar asset IDs
     local success, assetsString = pcall(function()
         return Players:GetCharacterAppearanceAsync(userId)
     end)
     if success and assetsString then
-        return assetsString
-    else
-        warn("Failed to fetch avatar assets for User ID:", userId)
-        return nil
-    end
-end
-
--- Function to parse asset IDs from string
-local function parseAssets(assetsString)
-    local assets = {}
-    for asset in string.gmatch(assetsString, "[^,]+") do
-        table.insert(assets, tonumber(asset))
-    end
-    return assets
-end
-
--- Function to load an asset by ID
-local function loadAsset(assetId)
-    local success, asset = pcall(function()
-        return InsertService:LoadAsset(assetId)
-    end)
-    if success and asset then
-        return asset
-    else
-        warn("Failed to load asset ID:", assetId)
-        return nil
-    end
-end
-
--- Function to clear current clothing/accessories
-local function clearCurrentOutfit()
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("BodyColors") then
-            item:Destroy()
+        -- Parse asset IDs
+        local assetIds = {}
+        for asset in string.gmatch(assetsString, "[^,]+") do
+            table.insert(assetIds, tonumber(asset))
         end
-    end
-end
 
--- Function to apply assets to character
-local function applyAssets(assetIds)
-    clearCurrentOutfit()
-    for _, id in ipairs(assetIds) do
-        local asset = loadAsset(id)
-        if asset then
-            for _, item in ipairs(asset:GetChildren()) do
-                if item:IsA("Accessory") then
-                    item.Parent = character
-                elseif item:IsA("Shirt") or item:IsA("Pants") then
-                    item.Parent = character
+        -- Remove existing clothes/accessories
+        for _, item in ipairs(character:GetChildren()) do
+            if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("BodyColors") then
+                item:Destroy()
+            end
+        end
+
+        -- Load and attach assets
+        for _, id in ipairs(assetIds) do
+            local success, asset = pcall(function()
+                return InsertService:LoadAsset(id)
+            end)
+            if success and asset then
+                for _, child in ipairs(asset:GetChildren()) do
+                    if child:IsA("Accessory") then
+                        child.Parent = character
+                    elseif child:IsA("Shirt") or child:IsA("Pants") then
+                        child.Parent = character
+                    end
                 end
             end
         end
-    end
-end
-
--- Button click handler
-LoadButton.MouseButton1Click:Connect(function()
-    local userIdStr = InputBox.Text
-    local userId = tonumber(userIdStr)
-    if not userId then
-        warn("Invalid User ID")
-        return
-    end
-    local assetsString = fetchAvatarAssets(userId)
-    if assetsString then
-        local assetIds = parseAssets(assetsString)
-        applyAssets(assetIds)
         print("Outfit loaded for User ID:", userId)
-    end
-end)local Players = game:GetService("Players")
-local InsertService = game:GetService("InsertService")
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-
--- Create GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "OutfitLoaderGUI"
-ScreenGui.Parent = game:GetService("StarterGui")
-ScreenGui.ResetOnSpawn = false
-
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 300, 0, 150)
-Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-Frame.BackgroundColor3 = Color3.new(0, 0, 0)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-
--- Make draggable
-local UserInputService = game:GetService("UserInputService")
-local dragging = false
-local dragStart, startPos
-
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-    end
-end)
-
-Frame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-Frame.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        Frame.Position = startPos + UDim2.new(0, delta.X, 0, delta.Y)
-    end
-end)
-
--- Title
-local Title = Instance.new("TextLabel")
-Title.Text = "Outfit Loader"
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.new(0,0,0)
-Title.TextColor3 = Color3.new(0,1,0)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.Parent = Frame
-
--- Input box
-local InputBox = Instance.new("TextBox")
-InputBox.PlaceholderText = "Enter User ID"
-InputBox.Size = UDim2.new(1, -20, 0, 30)
-InputBox.Position = UDim2.new(0, 10, 0, 40)
-InputBox.BackgroundColor3 = Color3.new(0,0,0)
-InputBox.TextColor3 = Color3.new(0,1,0)
-InputBox.Font = Enum.Font.SourceSans
-InputBox.TextSize = 18
-InputBox.ClearTextOnFocus = false
-InputBox.Text = ""
-InputBox.Parent = Frame
-
--- Load button
-local LoadButton = Instance.new("TextButton")
-LoadButton.Text = "Load Outfit"
-LoadButton.Size = UDim2.new(1, -20, 0, 40)
-LoadButton.Position = UDim2.new(0, 10, 0, 80)
-LoadButton.BackgroundColor3 = Color3.new(0,0,0)
-LoadButton.TextColor3 = Color3.new(0,1,0)
-LoadButton.Font = Enum.Font.SourceSansBold
-LoadButton.TextSize = 20
-LoadButton.Parent = Frame
-
--- Function to fetch avatar asset IDs
-local function fetchAvatarAssets(userId)
-    local success, assetsString = pcall(function()
-        return Players:GetCharacterAppearanceAsync(userId)
-    end)
-    if success and assetsString then
-        return assetsString
     else
         warn("Failed to fetch avatar assets for User ID:", userId)
-        return nil
     end
 end
 
--- Function to parse asset IDs from string
-local function parseAssets(assetsString)
-    local assets = {}
-    for asset in string.gmatch(assetsString, "[^,]+") do
-        table.insert(assets, tonumber(asset))
-    end
-    return assets
-end
-
--- Function to load an asset by ID
-local function loadAsset(assetId)
-    local success, asset = pcall(function()
-        return InsertService:LoadAsset(assetId)
-    end)
-    if success and asset then
-        return asset
-    else
-        warn("Failed to load asset ID:", assetId)
-        return nil
-    end
-end
-
--- Function to clear current clothing/accessories
-local function clearCurrentOutfit()
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("BodyColors") then
-            item:Destroy()
-        end
-    end
-end
-
--- Function to apply assets to character
-local function applyAssets(assetIds)
-    clearCurrentOutfit()
-    for _, id in ipairs(assetIds) do
-        local asset = loadAsset(id)
-        if asset then
-            for _, item in ipairs(asset:GetChildren()) do
-                if item:IsA("Accessory") then
-                    item.Parent = character
-                elseif item:IsA("Shirt") or item:IsA("Pants") then
-                    item.Parent = character
-                end
-            end
-        end
-    end
-end
-
--- Button click handler
+-- Button event
 LoadButton.MouseButton1Click:Connect(function()
     local userIdStr = InputBox.Text
-    local userId = tonumber(userIdStr)
-    if not userId then
+    local userIdNum = tonumber(userIdStr)
+    if not userIdNum then
         warn("Invalid User ID")
         return
     end
-    local assetsString = fetchAvatarAssets(userId)
-    if assetsString then
-        local assetIds = parseAssets(assetsString)
-        applyAssets(assetIds)
-        print("Outfit loaded for User ID:", userId)
-    end
+    fetchAndApplyAvatar(userIdNum)
 end)
