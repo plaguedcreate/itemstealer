@@ -1,41 +1,130 @@
--- References to GUI elements
-local textBox = script.Parent:WaitForChild("ItemIDTextBox")
-local addButton = script.Parent:WaitForChild("AddButton")
-local equipButton = script.Parent:WaitForChild("EquipButton")
-local listFrame = script.Parent:WaitForChild("ItemList")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local InsertService = game:GetService("InsertService")
+local RunService = game:GetService("RunService")
 
-local itemIds = {}
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 
--- Function to add item ID to list
-addButton.MouseButton1Click:Connect(function()
-    local id = textBox.Text
-    if tonumber(id) then
-        table.insert(itemIds, id)
-        -- Create a label to show the added ID
-        local label = Instance.new("TextLabel")
-        label.Text = "ID: " .. id
-        label.Size = UDim2.new(1, 0, 0, 20)
-        label.Parent = listFrame
-        textBox.Text = ""
+-- Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OutfitSwitcherGui"
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 300, 0, 150)
+Frame.Position = UDim2.new(0.5, -150, 0.5, -75)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Text = "Outfit Loader"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Parent = Frame
+
+local InputBox = Instance.new("TextBox")
+InputBox.PlaceholderText = "Enter User ID"
+InputBox.Size = UDim2.new(1, -20, 0, 30)
+InputBox.Position = UDim2.new(0, 10, 0, 40)
+InputBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+InputBox.TextColor3 = Color3.new(1,1,1)
+InputBox.Parent = Frame
+
+local LoadButton = Instance.new("TextButton")
+LoadButton.Text = "Load Outfit"
+LoadButton.Size = UDim2.new(1, -20, 0, 40)
+LoadButton.Position = UDim2.new(0, 10, 0, 80)
+LoadButton.BackgroundColor3 = Color3.fromRGB(100, 100, 250)
+LoadButton.TextColor3 = Color3.new(1,1,1)
+LoadButton.Parent = Frame
+
+local function Color3FromHex(hex)
+    local r = tonumber(hex:sub(1,2), 16)/255
+    local g = tonumber(hex:sub(3,4), 16)/255
+    local b = tonumber(hex:sub(5,6), 16)/255
+    return Color3.new(r,g,b)
+end
+
+local function fetchUserAvatar(userId)
+    local url = "https://avatar.roblox.com/v1/users/" .. userId .. "/avatar"
+    local success, response = pcall(function()
+        return HttpService:GetAsync(url)
+    end)
+    if success then
+        local data = HttpService:JSONDecode(response)
+        return data
     else
-        warn("Invalid ID")
+        warn("Failed to fetch avatar data")
+        return nil
     end
-end)
+end
 
--- Function to equip all items
-equipButton.MouseButton1Click:Connect(function()
-    for _, id in ipairs(itemIds) do
-        local asset = "rbxassetid://" .. id
-        local accessory = Instance.new("Accessory")
-        local handle = Instance.new("Part")
-        handle.Name = "Handle"
-        handle.Parent = accessory
+local function applyAvatar(avatarData)
+    if not avatarData or not avatarData.assets then return end
 
-        local mesh = Instance.new("SpecialMesh")
-        mesh.MeshId = asset
-        mesh.Parent = handle
+    -- Remove existing clothing/accessories
+    for _, item in ipairs(character:GetChildren()) do
+        if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("BodyColors") then
+            item:Destroy()
+        end
+    end
 
-        accessory.Name = "CustomAccessory"
-        accessory.Parent = game.Players.LocalPlayer.Character
+    -- Apply Shirt
+    if avatarData.assets.shirt then
+        local shirt = Instance.new("Shirt")
+        shirt.ShirtTemplate = avatarData.assets.shirt
+        shirt.Parent = character
+    end
+
+    -- Apply Pants
+    if avatarData.assets.pants then
+        local pants = Instance.new("Pants")
+        pants.PantsTemplate = avatarData.assets.pants
+        pants.Parent = character
+    end
+
+    -- Apply Accessories
+    if avatarData.assets.accessories then
+        for _, accessoryId in ipairs(avatarData.assets.accessories) do
+            local success, accessoryAsset = pcall(function()
+                return InsertService:LoadAsset(accessoryId)
+            end)
+            if success and accessoryAsset then
+                for _, item in ipairs(accessoryAsset:GetChildren()) do
+                    if item:IsA("Accessory") then
+                        item.Parent = character
+                    end
+                end
+            end
+        end
+    end
+
+    -- Apply BodyColors
+    if avatarData.assets.bodyColors then
+        local colors = avatarData.assets.bodyColors
+        local bodyColors = Instance.new("BodyColors")
+        bodyColors.HeadColor = Color3FromHex(colors.headColor)
+        bodyColors.LeftArmColor = Color3FromHex(colors.leftArmColor)
+        bodyColors.RightArmColor = Color3FromHex(colors.rightArmColor)
+        bodyColors.LeftLegColor = Color3FromHex(colors.leftLegColor)
+        bodyColors.RightLegColor = Color3FromHex(colors.rightLegColor)
+        bodyColors.TorsoColor = Color3FromHex(colors.torsoColor)
+        bodyColors.Parent = character
+    end
+end
+
+-- Button click handler
+LoadButton.MouseButton1Click:Connect(function()
+    local userIdStr = InputBox.Text
+    local userId = tonumber(userIdStr)
+    if not userId then
+        warn("Invalid User ID")
+        return
+    end
+    local avatarData = fetchUserAvatar(userId)
+    if avatarData then
+        applyAvatar(avatarData)
     end
 end)
